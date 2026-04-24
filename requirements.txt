@@ -1,4 +1,3 @@
-pip install --upgrade pip
-pip install Flask
-pip install twilio
-pip install gunicorn
+Flask
+twilio
+gunicorn
