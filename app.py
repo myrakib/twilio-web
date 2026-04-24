@@ -56,7 +56,7 @@ pre { background:#3a3a55; padding:10px; border-radius:5px; }
 
 <script>
 async function login(){
-    await fetch("/login", {
+    let res = await fetch("/login", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
@@ -64,7 +64,14 @@ async function login(){
             token: document.getElementById("token").value
         })
     });
-    alert("Logged in");
+
+    let data = await res.json();
+
+    if(data.status === "success"){
+        alert("✅ Login Successful");
+    } else {
+        alert("❌ Login Failed: " + data.message);
+    }
 }
 
 async function searchNumbers(){
@@ -110,7 +117,7 @@ async function loadMessages(){
     let data = await res.json();
 
     document.getElementById("msgs").textContent =
-        data.map(m => `From: ${m.from}\n${m.body}\n---`).join("\n");
+        data.map(m => `From: ${m.from}\\n${m.body}\\n---`).join("\\n");
 }
 </script>
 
@@ -132,12 +139,23 @@ def get_client():
 def home():
     return render_template_string(HTML)
 
+# ✅ UPDATED LOGIN WITH VALIDATION
 @app.route("/login", methods=["POST"])
 def login():
     data = request.json
-    session["sid"] = data["sid"]
-    session["token"] = data["token"]
-    return jsonify({"status": "ok"})
+    sid = data.get("sid")
+    token = data.get("token")
+
+    try:
+        client = Client(sid, token)
+        client.api.accounts(sid).fetch()  # verify credentials
+
+        session["sid"] = sid
+        session["token"] = token
+
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "fail", "message": str(e)})
 
 @app.route("/search_numbers")
 def search_numbers():
