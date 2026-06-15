@@ -17,173 +17,134 @@ BD_TZ = timezone(timedelta(hours=6))
 def to_bd_time(dt):
     if not dt:
         return "Unknown"
-    return dt.replace(tzinfo=timezone.utc).astimezone(BD_TZ).strftime("%d-%m %I:%M")
+    return dt.astimezone(BD_TZ).strftime("%d-%m %I:%M %p")
 
 
+# ---------------- UI ----------------
 HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-<title>Phone Panel</title>
+<title>Twilio Dashboard</title>
 
 <style>
-body{
-    font-size:18px;
-    font-family:Arial;
-    background:#f4f4f4;
-    margin:0;
-    padding:20px;
+body { font-family: Arial; background:#0f172a; color:white; margin:0; }
+.container { padding:20px; max-width:1000px; margin:auto; }
+
+.card { background:#1e293b; padding:15px; margin:10px 0; border-radius:10px; }
+
+input { padding:10px; width:200px; margin:5px; border-radius:5px; border:none; }
+
+button {
+    padding:10px 15px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    margin:5px;
 }
 
-.top-left{
-    position:fixed;
-    top:10px;
-    left:10px;
-    background:white;
-    padding:10px;
-    border-radius:8px;
-    width:220px;
-    box-shadow:0 0 10px #ccc;
-    font-size:16px;
-}
+.login-btn { background:#22c55e; color:white; }
+.buy-btn { background:#3b82f6; color:white; }
+.search-btn { background:#f59e0b; color:black; }
+.delete-btn { background:#ef4444; color:white; }
+.sms-btn { background:#8b5cf6; color:white; }
 
-button{
-    font-size:16px;
-    padding:8px 12px;
-    margin:4px;
-}
-
-.green{background:#28a745;color:white;border:none;}
-.blue{background:#007bff;color:white;border:none;}
-.red{background:#dc3545;color:white;border:none;}
-
-.section{
-    margin-top:15px;
-}
-
-.sms{
-    background:white;
-    padding:6px 8px;
-    margin:4px 0;
-    border-left:4px solid #007bff;
-    font-size:14px;
-}
-
-.search-box{
-    background:white;
-    padding:10px;
-    border-radius:8px;
-    margin:8px 0;
-}
-
-/* FOOTER */
-.footer{
-    position:fixed;
-    bottom:10px;
-    right:10px;
-    font-size:14px;
-    color:gray;
-    background:white;
-    padding:6px 10px;
+.number-box {
+    display:flex;
+    justify-content:space-between;
+    padding:8px;
+    background:#334155;
+    margin:5px 0;
     border-radius:6px;
-    box-shadow:0 0 8px #ccc;
 }
+
+h2,h3 { margin:10px 0; }
 </style>
 
 </head>
 
 <body>
+<div class="container">
 
-<!-- LEFT NUMBERS -->
-<div class="top-left">
-<b>Your Numbers</b><br>
-{% for n in numbers %}
-<div>
-{{ n }}
-<form method="POST" style="display:inline;">
-<input type="hidden" name="number" value="{{ n }}">
-<button class="red" name="action" value="delete">X</button>
-</form>
-</div>
-{% endfor %}
-</div>
-
-<h2>📱 Dashboard</h2>
+<h2>📡 Twilio Control Panel</h2>
 
 {% if not session.get('logged_in') %}
 
+<div class="card">
+<h3>🔐 Login</h3>
 <form method="POST">
 <input name="sid" placeholder="SID">
-<input name="token" placeholder="TOKEN">
-<button class="green" name="action" value="login">Login</button>
+<input name="token" placeholder="Token">
+<button class="login-btn" name="action" value="login">Login</button>
 </form>
+</div>
 
 {% else %}
 
-<!-- BUY SECTION -->
-<div class="section">
-<h3>🛒 Buy Numbers</h3>
-
 <form method="POST">
-<input name="area" placeholder="Area code optional">
-<button class="green" name="action" value="search">Search CA Numbers</button>
+<button class="delete-btn" name="action" value="logout">Logout</button>
 </form>
 
+<!-- SEARCH -->
+<div class="card">
+<h3>🔎 Search Numbers (Area Code)</h3>
 <form method="POST">
-<button class="blue" name="action" value="buy_random">Buy Random CA (5)</button>
+<input name="area" placeholder="Enter Area Code">
+<button class="search-btn" name="action" value="search">Search</button>
+</form>
+
+{% for n in search_results %}
+<div class="number-box">
+<span>{{ n }}</span>
+<form method="POST">
+<input type="hidden" name="number" value="{{ n }}">
+<button class="buy-btn" name="action" value="buy">Buy</button>
 </form>
 </div>
+{% endfor %}
+</div>
 
-<!-- SMS SECTION -->
-<div class="section">
+<!-- SMS -->
+<div class="card">
 <h3>📩 Incoming SMS</h3>
-
 <form method="POST">
-<button class="blue" name="action" value="sms">Refresh SMS</button>
+<button class="sms-btn" name="action" value="sms">Load SMS</button>
 </form>
 
 {% for m in sms_inbox %}
-<div class="sms">
-<b>{{ m.from }}</b> - {{ m.body }}
-<br>
-<small>{{ m.time }}</small>
+<div class="card">
+<b>From:</b> {{ m.from }} <br>
+<b>Msg:</b> {{ m.body }} <br>
+<b>Time:</b> {{ m.time }}
 </div>
 {% endfor %}
 </div>
 
-<!-- SEARCH RESULTS -->
-<div class="section">
-<h3>🔎 Available Numbers (CA)</h3>
+<!-- NUMBERS -->
+<div class="card">
+<h3>📱 Your Numbers</h3>
 
-{% for n in search_results %}
-<div class="search-box">
-{{ n }}
+{% for n in numbers %}
+<div class="number-box">
+<span>{{ n }}</span>
 <form method="POST">
 <input type="hidden" name="number" value="{{ n }}">
-<button class="blue" name="action" value="buy">Buy</button>
+<button class="delete-btn" name="action" value="delete">Delete</button>
 </form>
 </div>
 {% endfor %}
-</div>
 
-<hr>
-
-<form method="POST">
-<button class="red" name="action" value="logout">Logout</button>
-</form>
-
-<!-- FOOTER -->
-<div class="footer">
-Created by Rakibul Islam
 </div>
 
 {% endif %}
 
+</div>
 </body>
 </html>
 """
 
 
+# ---------------- HELPERS ----------------
 def refresh_numbers():
     global numbers_cache
     if client:
@@ -198,41 +159,42 @@ def generate_fake_numbers(area=None):
     ]
 
 
+# ---------------- ROUTE ----------------
 @app.route("/", methods=["GET", "POST"])
 def index():
-    global client, numbers_cache, search_results, sms_inbox
+    global client, search_results, sms_inbox
 
     action = request.form.get("action")
 
+    # LOGIN
     if action == "login":
         client = Client(request.form["sid"], request.form["token"])
         session["logged_in"] = True
         refresh_numbers()
 
+    # LOGOUT
     elif action == "logout":
         client = None
-        numbers_cache = []
         search_results = []
         sms_inbox = []
         session.clear()
 
+    # SEARCH NUMBERS
     elif action == "search":
         search_results = generate_fake_numbers(request.form.get("area"))
 
-    elif action == "buy_random":
-        search_results = generate_fake_numbers()
-
+    # BUY NUMBER (FIXED FLOW)
     elif action == "buy" and client:
-        client.incoming_phone_numbers.create(phone_number=request.form["number"])
-        refresh_numbers()
+        number = request.form["number"]
 
-    elif action == "delete" and client:
-        num = request.form["number"]
-        for n in client.incoming_phone_numbers.list():
-            if n.phone_number == num:
-                client.incoming_phone_numbers(n.sid).delete()
-        refresh_numbers()
+        available = client.available_phone_numbers("US").local.list(limit=1)
+        if available:
+            client.incoming_phone_numbers.create(
+                phone_number=available[0].phone_number
+            )
+            refresh_numbers()
 
+    # SMS INBOX
     elif action == "sms" and client:
         sms_inbox = []
         msgs = client.messages.list(limit=20)
@@ -244,6 +206,14 @@ def index():
                     "body": m.body,
                     "time": to_bd_time(m.date_sent)
                 })
+
+    # DELETE NUMBER
+    elif action == "delete" and client:
+        num = request.form["number"]
+        for n in client.incoming_phone_numbers.list():
+            if n.phone_number == num:
+                client.incoming_phone_numbers(n.sid).delete()
+        refresh_numbers()
 
     return render_template_string(
         HTML,
